@@ -2,16 +2,14 @@ package org.snipstack.bannotification.web;
 
 import org.snipstack.bannotification.model.BanNotification;
 import org.snipstack.bannotification.service.EmailService;
-import org.snipstack.bannotification.web.dto.BanNotificationRequest;
-import org.snipstack.bannotification.web.dto.BanNotificationResponse;
-import org.snipstack.bannotification.web.dto.UserBanResponse;
-import org.snipstack.bannotification.web.dto.UserBanRequest;
+import org.snipstack.bannotification.web.dto.*;
 import org.snipstack.bannotification.web.mapper.DtoMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.*;
 import java.util.Optional;
 
 @RestController
@@ -25,33 +23,32 @@ public class EmailController {
         this.emailService = emailService;
     }
 
-    @GetMapping("/notification")
-    public ResponseEntity<BanNotificationResponse> getBanNotification(@RequestBody BanNotificationRequest banNotificationRequest) {
-        Optional<BanNotification> notification = emailService.findByUserId(banNotificationRequest.getUserId());
-
-        if (notification.isEmpty()) {
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(null);
-        }
-
-        BanNotificationResponse banNotificationResponse = DtoMapper.toBanNotificationResponse(notification.get());
-
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(banNotificationResponse);
-    }
-
-
     @PostMapping("/send-notification")
     public ResponseEntity<UserBanResponse> sendBanNotificationEmail(@RequestBody UserBanRequest request) {
-
-        BanNotification notification = this.emailService.sendNotification(request);
+        BanNotification notification = this.emailService.sendBanNotification(request);
 
         UserBanResponse response = DtoMapper.fromBanNotification(notification);
 
         return ResponseEntity
-                .status(HttpStatus.OK)
+                .status(HttpStatus.CREATED)
                 .body(response);
+    }
+
+    @DeleteMapping("/unban-notification")
+    public ResponseEntity<Void> unbanBanNotification(@RequestBody UserUnbanRequest request) {
+        Optional<BanNotification> byUsername = this.emailService.findByUsername(request.getUsername());
+        if (byUsername.isEmpty()) {
+            throw new IllegalArgumentException("User not found");
+        }
+
+        this.emailService.sendUnbanNotification(request);
+        this.emailService.deleteById(byUsername.get().getId());
+
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/banned-users")
+    public List<BanNotification> getBannedUsers() {
+        return emailService.getAllBannedUsers();
     }
 }

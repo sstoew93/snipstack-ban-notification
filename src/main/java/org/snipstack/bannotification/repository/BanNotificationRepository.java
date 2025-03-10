@@ -11,4 +11,6 @@ import java.util.UUID;
 public interface BanNotificationRepository extends JpaRepository<BanNotification, UUID> {
 
     Optional<BanNotification> findByUserId(UUID userId);
+
+    Optional<BanNotification> findByUsername(String username);
 }
