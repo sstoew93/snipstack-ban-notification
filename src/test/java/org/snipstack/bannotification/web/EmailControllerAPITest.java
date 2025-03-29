@@ -60,12 +60,15 @@ public class EmailControllerAPITest {
 
     @Test
     void unbanNotificationRequest_ShouldDeleteBanNotificationById() throws Exception {
-        String body = "{\"username\": \"sstoew\"}";
+        UserUnbanRequest unbanRequest = UserUnbanRequest.builder()
+                .username("sstoew")
+                .build();
+
         MockHttpServletRequestBuilder request = MockMvcRequestBuilders.delete("/api/v1/unban-notification")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body);
+                .content(new ObjectMapper().writeValueAsString(unbanRequest));
 
-        when(emailService.findByUsername(banNotification.getUsername())).thenReturn(Optional.of(banNotification));
+        when(emailService.findByUsername(unbanRequest.getUsername())).thenReturn(Optional.of(banNotification));
 
         mockMvc.perform(request)
                 .andExpect(status().isOk());
@@ -75,14 +78,16 @@ public class EmailControllerAPITest {
     }
 
     @Test
-    void unbanNotificationRequest_ShouldThrowException() throws Exception {
-        String body = "{\"username\": \"sstoew\"}";
+    void unbanNotificationRequest_ShouldThrowExceptionIfUserNotExist() throws Exception {
+        UserUnbanRequest unbanRequest = UserUnbanRequest.builder()
+                .username("sstoew")
+                .build();
 
         MockHttpServletRequestBuilder request = MockMvcRequestBuilders.delete("/api/v1/unban-notification")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body);
+                .content(new ObjectMapper().writeValueAsString(unbanRequest));
 
-        when(emailService.findByUsername(banNotification.getUsername())).thenReturn(Optional.empty());
+        when(emailService.findByUsername(unbanRequest.getUsername())).thenReturn(Optional.empty());
 
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
@@ -93,20 +98,23 @@ public class EmailControllerAPITest {
 
     @Test
     void sendBanNotificationRequest_ShouldSendBanNotification() throws Exception {
-        BanNotification banNotification = BanNotification.builder()
+        UserBanRequest banRequest = UserBanRequest.builder()
                 .username("sstoew")
                 .email("sstoew@snipstack.com")
-                .id(UUID.randomUUID())
+                .userId(UUID.randomUUID())
                 .build();
+
+        when(emailService.sendBanNotification(any(UserBanRequest.class))).thenReturn(banNotification);
 
         MockHttpServletRequestBuilder request = MockMvcRequestBuilders.post("/api/v1/send-notification")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(new ObjectMapper().writeValueAsString(banNotification));
-
-                when(emailService.sendBanNotification(any(UserBanRequest.class))).thenReturn(banNotification);
+                .content(new ObjectMapper().writeValueAsString(banRequest));
 
         mockMvc.perform(request)
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("bannedAt").isNotEmpty())
+                .andExpect(jsonPath("username").isNotEmpty())
+                .andExpect(jsonPath("email").isNotEmpty());
 
         verify(emailService, times(1)).sendBanNotification(any(UserBanRequest.class));
     }
